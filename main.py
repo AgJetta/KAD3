@@ -4,6 +4,9 @@ import colormaps as cmaps
 import mcmd
 import numpy as np
 import pandas as pd
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
+
 
 os.environ['OMP_NUM_THREADS'] = '1'
 from matplotlib import pyplot as plt
@@ -98,7 +101,7 @@ def calculate_new_centroids(data, clusters):
 
 
 # Main k-means clustering function
-def k_means(data, k, max_iters=10000, tolerance=1e-4):
+def k_means(data, k, max_iters=1000000, tolerance=1e-10):
     centroids = initialize_centroids(data, k)
     prev_centroids = centroids.copy()
     for it in range(max_iters):
@@ -117,54 +120,45 @@ def k_means(data, k, max_iters=10000, tolerance=1e-4):
 
 # XDXDXD
 
-data_np = measurable_attributes.to_numpy()
 
-k = 3
+data_np = measurable_attributes.to_numpy()
+feature_names = measurable_attributes.columns  # Get the feature names
+
+k = 10
 clusters, centroids, labels = k_means(data_np, k)
 
-# Preparing the combinations of the four features for plotting
+# Preparing the combinations of the first four features for plotting
 feature_combinations = list(combinations(range(4), 2))
 
 # Set up the matplotlib figure (3 rows, 2 columns)
 fig, axes = plt.subplots(3, 2, figsize=(12, 18))
-plt.suptitle(f'K-Means Clustering with k={k} \n')
+plt.suptitle(f'K-Means Clustering with k={k}')
 
 # Flatten the array of axes for easy iterating
 axes = axes.ravel()
 
-# Use 'nipy_spectral' colormap for better color distinction
-cmap = mcm.nipy_spectral
-
-# Create manually defined colors for clusters and centroids
-colors = [cmap(i / (k - 1)) for i in range(k)]
-
-# Create an empty list to store scatter plots for data points
-scatters = []
+colors = mcm.nipy_spectral(np.linspace(0, 1, k))  # Generate distinct colors for each cluster
 
 for i, (col1, col2) in enumerate(feature_combinations):
-    # Map cluster indices to colors using the manually defined colors
-    scatter = axes[i].scatter(measurable_attributes.iloc[:, col1], measurable_attributes.iloc[:, col2], c=labels,
-                              cmap=mcm.colors.ListedColormap(colors), alpha=1)
-    axes[i].set_xlabel(column_names[col1])
-    axes[i].set_ylabel(column_names[col2])
+    scatter = axes[i].scatter(data_np[:, col1], data_np[:, col2], c=labels, cmap=mcm.nipy_spectral)
 
-    # Plot centroids with labels using the same colors as clusters
-    for j in range(k):
-        axes[i].scatter(centroids[j, col1], centroids[j, col2], s=150, alpha=1, marker='D',
-                        label=f'Centroid {j}', color=colors[j])
+    axes[i].set_xlabel(feature_names[col1])
+    axes[i].set_ylabel(feature_names[col2])
 
-    # Store scatter plot in the list
-    scatters.append(scatter)
+    sm = ScalarMappable(cmap=mcm.nipy_spectral, norm=Normalize(vmin=0, vmax=k - 1))
+    sm.set_array([])
 
-# Add a color bar using manually defined colors
-fig.subplots_adjust(bottom=0.1, top=0.9)  # Adjust the layout to make room for the colorbar
-cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # Position of the colorbar
-cbar = plt.colorbar(scatters[0], cax=cbar_ax, orientation='horizontal', ticks=range(k))  # Adjust ticks
-cbar.set_label('Cluster')
-cbar.set_ticklabels(range(1, k + 1))  # Set ticks to match cluster indices
+    plt.subplots_adjust(bottom=0.15, top=0.95)
+    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # Position of the color bar
+    cbar = plt.colorbar(sm, cax=cbar_ax, orientation='horizontal', ticks=range(k))
+    cbar.set_label('Cluster Index')
 
-# Add legend for centroids
-for ax in axes:
-    ax.legend()
+    # Plot centroids on the same scatter plot
+    for cluster_index, cluster in enumerate(clusters):
+        points = data_np[cluster]
+        color = mcm.nipy_spectral(cluster_index / (k - 1))  # Adjust color based on cluster_index
+        axes[i].scatter(points[:, col1], points[:, col2], color=color, label=f'Cluster {cluster_index}')
+        axes[i].scatter(centroids[cluster_index, col1], centroids[cluster_index, col2],
+                        s=100, color=color, marker='X')  # Same color for centroids
 
 plt.show()
