@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, adjusted_mutual_info_score
+
 
 
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -28,56 +30,59 @@ header_list = data.columns.tolist()
 
 measurable_attributes = data.iloc[:, :4]
 
+species_column = data['Gatunek']
 
 print(measurable_attributes)
 
-#
-# # Preparing the combinations of the four features for plotting
-# feature_combinations = list(combinations(range(4), 2))
-#
-# # Range of k values to try
-# k_values = range(1, 11)
-#
-#
-#
-# for k in k_values:
-#     # Perform k-means clustering using all four attributes
-#     kmeans = KMeans(n_clusters=k, n_init=10, random_state=0).fit(measurable_attributes)
-#     labels = kmeans.labels_
-#     centers = kmeans.cluster_centers_  # Cluster centers
-#
-#     # Set up the matplotlib figure (3 rows, 2 columns)
-#     fig, axes = plt.subplots(3, 2, figsize=(12, 18))
-#     plt.suptitle(f'K-Means Clustering with k={k} \n')
-#
-#     # Flatten the array of axes for easy iterating
-#     axes = axes.ravel()
-#
-#     # Use a colormap for better color distinction
-#     cmap = mcm.nipy_spectral  # Directly using the colormap
-#
-#     for i, (col1, col2) in enumerate(feature_combinations):
-#         scatter = axes[i].scatter(measurable_attributes.iloc[:, col1], measurable_attributes.iloc[:, col2], c=labels,
-#                                   cmap=cmap, alpha = 0.8)
-#         axes[i].set_xlabel(column_names[col1])
-#         axes[i].set_ylabel(column_names[col2])
-#         # axes[i].scatter(centers[:, col1], centers[:, col2], s=50, alpha=0.9, marker='D', color = 'black')
-#
-#
-#         # Add a color bar
-#     fig.subplots_adjust(bottom=0.1, top=0.9)  # Adjust the layout to make room for the colorbar
-#     cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # Position of the colorbar
-#     plt.colorbar(scatter, cax=cbar_ax, orientation='horizontal')
-#
-#
-#     plt.show()
+def check_with_sklearn():
+    # Preparing the combinations of the four features for plotting
+    feature_combinations = list(combinations(range(4), 2))
+
+    # Range of k values to try
+    k_values = range(1, 11)
 
 
-# Assuming 'data' is your DataFrame and you have already selected the features into 'measurable_attributes'
+
+    for k in k_values:
+        # Perform k-means clustering using all four attributes
+        kmeans = KMeans(n_clusters=k, n_init=10, random_state=0).fit(measurable_attributes)
+        labels = kmeans.labels_
+        centers = kmeans.cluster_centers_  # Cluster centers
+
+        # Set up the matplotlib figure (3 rows, 2 columns)
+        fig, axes = plt.subplots(3, 2, figsize=(12, 18))
+        plt.suptitle(f'K-Means Clustering with k={k} \n')
+
+        # Flatten the array of axes for easy iterating
+        axes = axes.ravel()
+
+        # Use a colormap for better color distinction
+        cmap = mcm.nipy_spectral  # Directly using the colormap
+
+        for i, (col1, col2) in enumerate(feature_combinations):
+            scatter = axes[i].scatter(measurable_attributes.iloc[:, col1], measurable_attributes.iloc[:, col2], c=labels,
+                                      cmap=cmap, alpha = 0.8)
+            axes[i].set_xlabel(column_names[col1])
+            axes[i].set_ylabel(column_names[col2])
+            # axes[i].scatter(centers[:, col1], centers[:, col2], s=50, alpha=0.9, marker='D', color = 'black')
+
+
+            # Add a color bar
+        fig.subplots_adjust(bottom=0.1, top=0.9)  # Adjust the layout to make room for the colorbar
+        cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # Position of the colorbar
+        plt.colorbar(scatter, cax=cbar_ax, orientation='horizontal')
+
+
+        plt.show()
+
+# check_with_sklearn()
+
+
 
 # Function to calculate the Euclidean distance between points
 def euclidean_distance(a, b):
-    return np.sqrt(np.sum((a - b) ** 2))
+    sum_squared_diff = sum((x - y) ** 2 for x, y in zip(a, b))
+    return sum_squared_diff ** 0.5
 
 
 # Initialize centroids by randomly selecting 'k' samples from the dataset
@@ -100,11 +105,14 @@ def calculate_new_centroids(data, clusters):
     return np.array([np.mean(data[cluster], axis=0) for cluster in clusters])
 
 
+
 # Main k-means clustering function
-def k_means(data, k, max_iters=1000000, tolerance=1e-10):
+# Main k-means clustering function
+def k_means(data, k, max_iters=10, tolerance=0):
     centroids = initialize_centroids(data, k)
     prev_centroids = centroids.copy()
-    for it in range(max_iters):
+    it = 0  # Initialize iteration counter
+    for it in range(1, max_iters + 1):
         clusters = assign_clusters(data, centroids)
         centroids = calculate_new_centroids(data, clusters)
 
@@ -114,9 +122,16 @@ def k_means(data, k, max_iters=1000000, tolerance=1e-10):
             break
         prev_centroids = centroids.copy()
 
-        labels = np.concatenate([np.full(len(cluster), i) for i, cluster in enumerate(clusters)])
+    labels = np.concatenate([np.full(len(cluster), i) for i, cluster in enumerate(clusters)])
 
-    return clusters, centroids, labels
+    wcss = 0
+    for cluster_idx, cluster in enumerate(clusters):
+        centroid = centroids[cluster_idx]
+        for idx in cluster:
+            wcss += np.sum((data[idx] - centroid) ** 2)
+
+    return clusters, centroids, labels, wcss, it
+
 
 # XDXDXD
 
@@ -124,8 +139,8 @@ def k_means(data, k, max_iters=1000000, tolerance=1e-10):
 data_np = measurable_attributes.to_numpy()
 feature_names = measurable_attributes.columns  # Get the feature names
 
-k = 10
-clusters, centroids, labels = k_means(data_np, k)
+k = 3
+clusters, centroids, labels, wcss, it = k_means(data_np, k)
 
 # Preparing the combinations of the first four features for plotting
 feature_combinations = list(combinations(range(4), 2))
@@ -137,28 +152,62 @@ plt.suptitle(f'K-Means Clustering with k={k}')
 # Flatten the array of axes for easy iterating
 axes = axes.ravel()
 
-colors = mcm.nipy_spectral(np.linspace(0, 1, k))  # Generate distinct colors for each cluster
+colors = mcm.tab20(np.linspace(0, 1, k))
 
 for i, (col1, col2) in enumerate(feature_combinations):
-    scatter = axes[i].scatter(data_np[:, col1], data_np[:, col2], c=labels, cmap=mcm.nipy_spectral)
+    scatter = axes[i].scatter(data_np[:, col1], data_np[:, col2], c=labels, cmap=mcm.tab20)
 
-    axes[i].set_xlabel(feature_names[col1])
-    axes[i].set_ylabel(feature_names[col2])
-
-    sm = ScalarMappable(cmap=mcm.nipy_spectral, norm=Normalize(vmin=0, vmax=k - 1))
-    sm.set_array([])
-
-    plt.subplots_adjust(bottom=0.15, top=0.95)
-    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # Position of the color bar
-    cbar = plt.colorbar(sm, cax=cbar_ax, orientation='horizontal', ticks=range(k))
-    cbar.set_label('Cluster Index')
+    axes[i].set_xlabel(column_names[col1])
+    axes[i].set_ylabel(column_names[col2])
 
     # Plot centroids on the same scatter plot
     for cluster_index, cluster in enumerate(clusters):
         points = data_np[cluster]
-        color = mcm.nipy_spectral(cluster_index / (k - 1))  # Adjust color based on cluster_index
-        axes[i].scatter(points[:, col1], points[:, col2], color=color, label=f'Cluster {cluster_index}')
+        color = mcm.tab20(cluster_index / (k - 1))  # Adjust color based on cluster_index
+        axes[i].scatter(points[:, col1], points[:, col2], color=color, label=f'Cluster {cluster_index}', s=100)
         axes[i].scatter(centroids[cluster_index, col1], centroids[cluster_index, col2],
-                        s=100, color=color, marker='X')  # Same color for centroids
+                        s=100, color=color, marker='D', edgecolors='black')  # Same color for centroids
 
 plt.show()
+
+
+def iterations_vs_k(data, k_max):
+    k_values = list(range(2, k_max + 1))
+    iterations_values = [k_means(data, k)[4] for k in k_values]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(k_values, iterations_values, marker='o', linestyle='-', color='forestgreen')
+    plt.title('Number of Iterations vs. Number of Clusters (k)')
+    plt.xlabel('Number of Clusters (k)')
+    plt.ylabel('Number of Iterations')
+    plt.grid(True)
+    plt.show()
+
+def calculate_wcss(data, k):
+    _, _, _, wcss ,_ = k_means(data, k)
+    return wcss
+
+def plot_wcss_vs_k(data, k_max):
+    k_values = list(range(2, k_max + 1))
+    wcss_values = [calculate_wcss(data, k) for k in k_values]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(k_values, wcss_values, marker='o', linestyle='-', color='dodgerblue')
+    plt.title('Within-Cluster Sum of Squares (WCSS) vs. Number of Clusters (k)')
+    plt.xlabel('Number of Clusters (k)')
+    plt.ylabel('WCSS')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.xticks(list(range(2, k_max + 1)))  # Set x-axis ticks for each k value
+
+    # Improve grid for y-axis
+    plt.yticks(np.arange(10, max(wcss_values) + 10, 10))  # Set y-axis ticks at intervals of 100
+    plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)  # Add grid lines for y-axis
+
+    plt.show()
+
+    plt.show()
+
+
+plot_wcss_vs_k(measurable_attributes.to_numpy(), 10)
+iterations_vs_k(measurable_attributes.to_numpy(), 10)
+
