@@ -43,7 +43,6 @@ def check_with_sklearn():
     k_values = range(1, 11)
 
 
-
     for k in k_values:
         # Perform k-means clustering using all four attributes
         kmeans = KMeans(n_clusters=k, n_init=10, random_state=0).fit(measurable_attributes)
@@ -108,7 +107,6 @@ def calculate_new_centroids(data, clusters):
 
 
 # Main k-means clustering function
-# Main k-means clustering function
 def k_means(data, k, max_iters=10, tolerance=0):
     centroids = initialize_centroids(data, k)
     prev_centroids = centroids.copy()
@@ -139,7 +137,7 @@ def k_means(data, k, max_iters=10, tolerance=0):
 
 
 
-# XDXDXD
+####
 
 k = 3
 
@@ -174,6 +172,8 @@ for i, (col1, col2) in enumerate(feature_combinations):
         axes[i].scatter(centroids[cluster_index, col1], centroids[cluster_index, col2],
                         s=100, color=color, marker='D', edgecolors='black')  # Same color for centroids
 
+plt.savefig('clustering')
+
 plt.show()
 
 
@@ -187,6 +187,9 @@ def iterations_vs_k(data, k_max):
     plt.xlabel('Wartość k (liczba klastrów)')
     plt.ylabel('Liczba iteracji')
     plt.grid(True)
+
+    plt.savefig('wcss_vs_it')
+
     plt.show()
 
 
@@ -210,9 +213,10 @@ def plot_wcss_vs_k(data, k_max):
     plt.yticks(np.arange(10, max(wcss_values) + 10, 10))  # Set y-axis ticks at intervals of 100
     plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)  # Add grid lines for y-axis
 
-    plt.show()
+    plt.savefig('wcss_vs_k')
 
     plt.show()
+
 
 plot_wcss_vs_k(measurable_attributes.to_numpy(), 10)
 iterations_vs_k(measurable_attributes.to_numpy(), 10)
