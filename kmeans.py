@@ -34,6 +34,7 @@ species_column = data['Gatunek']
 
 print(measurable_attributes)
 
+
 def check_with_sklearn():
     # Preparing the combinations of the four features for plotting
     feature_combinations = list(combinations(range(4), 2))
@@ -130,17 +131,22 @@ def k_means(data, k, max_iters=10, tolerance=0):
         for idx in cluster:
             wcss += np.sum((data[idx] - centroid) ** 2)
 
-    return clusters, centroids, labels, wcss, it
+    # Additional values to return
+    iterations_values = it
+    wcss_values = wcss
+
+    return clusters, centroids, labels, it, wcss
+
 
 
 # XDXDXD
 
+k = 3
 
 data_np = measurable_attributes.to_numpy()
 feature_names = measurable_attributes.columns  # Get the feature names
 
-k = 3
-clusters, centroids, labels, wcss, it = k_means(data_np, k)
+clusters, centroids, labels, it, wcss = k_means(data_np, k)
 
 # Preparing the combinations of the first four features for plotting
 feature_combinations = list(combinations(range(4), 2))
@@ -173,18 +179,19 @@ plt.show()
 
 def iterations_vs_k(data, k_max):
     k_values = list(range(2, k_max + 1))
-    iterations_values = [k_means(data, k)[4] for k in k_values]
+    iterations_values = [k_means(data, k)[3] for k in k_values]  # Use index 3 for iterations
 
     plt.figure(figsize=(10, 6))
     plt.plot(k_values, iterations_values, marker='o', linestyle='-', color='forestgreen')
-    plt.title('Number of Iterations vs. Number of Clusters (k)')
-    plt.xlabel('Number of Clusters (k)')
-    plt.ylabel('Number of Iterations')
+    plt.title('Wykres zależności liczby iteracji od k')
+    plt.xlabel('Wartość k (liczba klastrów)')
+    plt.ylabel('Liczba iteracji')
     plt.grid(True)
     plt.show()
 
+
 def calculate_wcss(data, k):
-    _, _, _, wcss ,_ = k_means(data, k)
+    _, _, _, _, wcss = k_means(data_np, k)
     return wcss
 
 def plot_wcss_vs_k(data, k_max):
@@ -193,9 +200,9 @@ def plot_wcss_vs_k(data, k_max):
 
     plt.figure(figsize=(10, 6))
     plt.plot(k_values, wcss_values, marker='o', linestyle='-', color='dodgerblue')
-    plt.title('Within-Cluster Sum of Squares (WCSS) vs. Number of Clusters (k)')
-    plt.xlabel('Number of Clusters (k)')
-    plt.ylabel('WCSS')
+    plt.title('Wykres zależności WCSS od k')
+    plt.xlabel('Wartość k (liczba klastrów)')
+    plt.ylabel('Wartość WCSS')
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.xticks(list(range(2, k_max + 1)))  # Set x-axis ticks for each k value
 
@@ -207,7 +214,15 @@ def plot_wcss_vs_k(data, k_max):
 
     plt.show()
 
-
 plot_wcss_vs_k(measurable_attributes.to_numpy(), 10)
 iterations_vs_k(measurable_attributes.to_numpy(), 10)
 
+ari = adjusted_rand_score(species_column, labels)
+ami = adjusted_mutual_info_score(species_column, labels)
+nmi = normalized_mutual_info_score(species_column, labels)
+
+print(f'Data for species column and k-means clusters')
+print(f'ARI: {ari}')
+print(f"AMI: {ami}")
+print(f"NMI: {nmi}")
+print('\n')
